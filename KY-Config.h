@@ -17,7 +17,7 @@ History:
 #include "DCLF32.h"
 
 #define TFT     1
-#define Grid    1   //1-Grid 0-Inv
+#define Grid    0   //1-Grid(PLL锁市电) 0-Inv(内部SGEN 50Hz，开环方波输出用0)
 
 #define SPWM_ON {EALLOW; \
                         EPwm1Regs.TZCLR.bit.OST = 1;\

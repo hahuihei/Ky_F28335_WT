@@ -1,14 +1,14 @@
 //----------------------------------------------------------------------------------
 //  FILE:           KY-Main.C
 //
-//  Description:    F28335 ÎŞÏß³äµçÇı¶¯³ÌĞò
+//  Description:    F28335 æ— çº¿å……ç”µé©±åŠ¨ç¨‹åº
 //
 //  Version:        1.2
 //
 //  Target:         TMS320F28335
 //
 //----------------------------------------------------------------------------------
-//  °æÈ¨ËùÓĞkypine VX13550290166 20260415
+//  ç‰ˆæƒæ‰€æœ‰kypine VX13550290166 20260415
 //----------------------------------------------------------------------------------
 // Although this project is made up of several files, the most important ones are:
 //   "KY-Main.C"    - this file
@@ -157,6 +157,7 @@ float  vbus_meas_inst;
 int16 CloseIloopInv, ClearInvTrip,CloseFlybackLoop, ClearFlyBackTrip, RlyConnect;
 float duty_flyback_pu, duty_flyback_pu2, duty_inv_pu;
 int16  duty_flyback, duty_flyback2, duty_inv;
+int16  phase_flyback;
 int16  PERIOD;
 
 //------------------------ Display Values ------------------------------------------
@@ -167,38 +168,38 @@ float  Gui_Vbus;
 float  Gui_Iavg;
 long   Gui_Vrms;
 
-// CNTL 3p3z ÓÃÓÚÄæ±ä¿ØÖÆ»·£¬ÔËĞĞÔÚRAM
+// CNTL 3p3z ç”¨äºé€†å˜æ§åˆ¶ç¯ï¼Œè¿è¡Œåœ¨RAM
 #pragma DATA_SECTION(cntl3p3z_InvI_vars,"data")
 #pragma DATA_SECTION(cntl3p3z_InvI_coeff,"dataRAM")
 CNTL_3P3Z_F_VARS cntl3p3z_InvI_vars;
 CNTL_3P3Z_F_COEFFS cntl3p3z_InvI_coeff;
 
 DCL_PI Udc_PI;
-float Vdcref;                   //µçÑ¹±Õ»·ÓÃµÄ
-float Vdcexp;                   //Ä¸ÏßÇ°À¡µçÑ¹ÏŞ¶¨Öµ
+float Vdcref;                   //ç”µå‹é—­ç¯ç”¨çš„
+float Vdcexp;                   //æ¯çº¿å‰é¦ˆç”µå‹é™å®šå€¼
 
 //*****************************************************************************
 //----------------------------------------------------------------------------------------------------------
 //SCI
-//#define COMM_ID       0xA2                    //´®¿ÚÃüÁîÊ¶±ğµØÖ·
-#define COMM_ID         0xEE                    //´®¿ÚÃüÁîÊ¶±ğµØÖ·
-#define ID_I            0                       //´®¿ÚÃüÁîµÚ0Î»
-#define CMD_I           1                       //´®¿ÚÃüÁîµÚ1Î»
-#define ADDR_I          2                       //´®¿ÚÃüÁîµÚ2Î»
-#define DATA_I          3                       //´®¿ÚÃüÁîµÚ3Î»
-#define DATB_I          4                       //´®¿ÚÃüÁîµÚ4Î»
-Uint16 send_timer=0;                            //LCDÊı¾İ·¢ËÍÊ±¼ä
-Uint16 timerNum=10;                             //·¢ËÍ¼ä¸ô±äÁ¿
+//#define COMM_ID       0xA2                    //ä¸²å£å‘½ä»¤è¯†åˆ«åœ°å€
+#define COMM_ID         0xEE                    //ä¸²å£å‘½ä»¤è¯†åˆ«åœ°å€
+#define ID_I            0                       //ä¸²å£å‘½ä»¤ç¬¬0ä½
+#define CMD_I           1                       //ä¸²å£å‘½ä»¤ç¬¬1ä½
+#define ADDR_I          2                       //ä¸²å£å‘½ä»¤ç¬¬2ä½
+#define DATA_I          3                       //ä¸²å£å‘½ä»¤ç¬¬3ä½
+#define DATB_I          4                       //ä¸²å£å‘½ä»¤ç¬¬4ä½
+Uint16 send_timer=0;                            //LCDæ•°æ®å‘é€æ—¶é—´
+Uint16 timerNum=10;                             //å‘é€é—´éš”å˜é‡
 Uart_Msg SCI_Msg={0, {0},0,0, 0};
 unsigned char HandleCommAG(void);
 void sendTFT(float32 U,Uint16 SID,Uint16 ID);
 void sci_tft(void);
 
 char cPV_State[40];
-float SET_VAL=2.0;                              // Ä¬ÈÏÉèÖÃÖµ
+float SET_VAL=2.0;                              // é»˜è®¤è®¾ç½®å€¼
 //----------------------------------------------------------------------------------------------------------
 
-//²âÊÔÓÃµÄ
+//æµ‹è¯•ç”¨çš„
 Uint16 ky1=0;
 Uint16 ky2=0;
 Uint16 ky3=0;
@@ -207,7 +208,7 @@ Uint16 ky3=0;
 //ADC
 char ADCflag = 0;
 
-//TEMP ÎÂ¶È
+//TEMP æ¸©åº¦
 Uint16 Rvt1=0;
 float Rv1=32.116;
 Uint16 Rvt2=0;
@@ -227,7 +228,7 @@ Uint16  Gui_InvStop;
 void main(void)
 {
     DeviceInit();   // Device Life support & GPIO
-    //InitGpios();  // ÔÚDeviceInitÖĞÓĞGPIO³õÊ¼»¯
+    //InitGpios();  // åœ¨DeviceInitä¸­æœ‰GPIOåˆå§‹åŒ–
 //-------------------------------- FRAMEWORK --------------------------------------
 
 // Only used if running from FLASH
@@ -282,15 +283,15 @@ void main(void)
     PWM_1phInv_unipolar_CNF(1,3750,45,45);
 
     SPWM_OFF;
-    // »¥²¹µÄ PWM3 100kHz
+    // äº’è¡¥çš„ PWM3 100kHz
     PWM_1ch_UpDwnCnt_CNF(3, BOOST_PWM_PERIOD*2, 1, (CPU_FREQ / (FLYBACK_FREQ * 2)) - 2,FLYBACK_DEADBAND_RED,FLYBACK_DEADBAND_FED);
-    // »¥²¹µÄ PWM4 100kHz
+    // äº’è¡¥çš„ PWM4 100kHz
     PWM_1ch_UpDwnCnt_CNF(4, BOOST_PWM_PERIOD*2, 0, (CPU_FREQ / (FLYBACK_FREQ * 2)) - 2,FLYBACK_DEADBAND_RED,FLYBACK_DEADBAND_FED);
     PERIOD = BOOST_PWM_PERIOD;
     mPWM3_OFF();
     mPWM4_OFF();
 
-    //Çı¶¯µçÔ´50kHz
+    //é©±åŠ¨ç”µæº50kHz
     PWM_2ch_UpDwnCnt_CNF(5, 1500, 1, 0);
 //==============================================================
 // ADC initialization
@@ -309,11 +310,11 @@ void main(void)
 //====================================================================================
     spi_init(&SYS_SPI);
 
-    // CANÄ£¿é³õÊ¼»¯
+    // CANæ¨¡å—åˆå§‹åŒ–
     InitECanA();
 
     scic_init();
-    strcpy(cPV_State,"¾ÍĞ÷");
+    strcpy(cPV_State,"å°±ç»ª");
 
     //Inverter
 
@@ -332,7 +333,7 @@ void main(void)
     sine_mainsV.SampleFreq=_IQ15(20000.0);
     sine_mainsV.Threshold=0.0;
 
-    //CNTL3P3Z Inverter Current Loop  CNTL3P3Z Äæ±äÆ÷µçÁ÷»·
+    //CNTL3P3Z Inverter Current Loop  CNTL3P3Z é€†å˜å™¨ç”µæµç¯
     CNTL_3P3Z_F_VARS_init(&cntl3p3z_InvI_vars);
     CNTL_3P3Z_F_COEFFS_init(&cntl3p3z_InvI_coeff);
     cntl3p3z_InvI_coeff.Coeff_A1 = (1.584);
@@ -352,7 +353,7 @@ void main(void)
     pidGRANDO_Iinv.param.Umax=(1.0);
     pidGRANDO_Iinv.param.Umin=(-1.0);
 
-    //²¢ÍøÄ¸ÏßµçÑ¹Ç°À¡»·
+    //å¹¶ç½‘æ¯çº¿ç”µå‹å‰é¦ˆç¯
     pidGRANDO_Vinv.param.Kp=(3.0);
     pidGRANDO_Vinv.param.Ki=(0.005);
     pidGRANDO_Vinv.param.Kd=(0.0);
@@ -360,7 +361,7 @@ void main(void)
     pidGRANDO_Vinv.param.Umax=(0.95);
     pidGRANDO_Vinv.param.Umin=(0.000);
 
-    //PFCµçÑ¹»·
+    //PFCç”µå‹ç¯
     Udc_PI.Kp = 0.1;                //0.05
     Udc_PI.Ki = 0.001;              //0.0005 0.001
     Udc_PI.Imax = 22.5;
@@ -374,8 +375,8 @@ void main(void)
     Udc_PI.i10 = 0;
     Udc_PI.i11 = 0;
 
-    Vdcref=0;                       //µçÑ¹±Õ»·ÓÃµÄ
-    Vdcexp=300.0;                   //Ä¸ÏßÇ°À¡µçÑ¹ÏŞ¶¨Öµ
+    Vdcref=0;                       //ç”µå‹é—­ç¯ç”¨çš„
+    Vdcexp=300.0;                   //æ¯çº¿å‰é¦ˆç”µå‹é™å®šå€¼
 
     SPLL_1ph_init(GRID_FREQ,(0.00005),&spll1);
 
@@ -427,14 +428,14 @@ void main(void)
 
     PieCtrlRegs.PIEIER3.bit.INTx1 = 1;                  // Enable PIE group 3 interrupt 1 for EPWM1_INT
     PieVectTable.EPWM1_INT = &EPWM1_ISR;                // EPWM1_ISR ISR;
-    //PieVectTable.ECAN1INTA = &eCAN_ISRA;              // eCAN1-AÖĞ¶Ï
-    PieVectTable.ECAN0INTA  = &eCAN_ISRA;               // eCAN0-AÖĞ¶Ï
+    //PieVectTable.ECAN1INTA = &eCAN_ISRA;              // eCAN1-Aä¸­æ–­
+    PieVectTable.ECAN0INTA  = &eCAN_ISRA;               // eCAN0-Aä¸­æ–­
     IER |= M_INT3;                                      // Enable CPU INT3 for EPWM1 INT
 
     PieCtrlRegs.PIEIER1.bit.INTx6 = 1;                  // Enable PIE group 1 interrupt 6 for ADC_INT
     PieVectTable.ADCINT = &ADC_ISR;
-    //PieCtrlRegs.PIEIER9.bit.INTx6 = 1;                // eCAN1-AÖĞ¶ÏÊ¹ÄÜ (×é9.6)
-    PieCtrlRegs.PIEIER9.bit.INTx5 = 1;                  // eCAN0-AÖĞ¶ÏÊ¹ÄÜ (×é9.5)
+    //PieCtrlRegs.PIEIER9.bit.INTx6 = 1;                // eCAN1-Aä¸­æ–­ä½¿èƒ½ (ç»„9.6)
+    PieCtrlRegs.PIEIER9.bit.INTx5 = 1;                  // eCAN0-Aä¸­æ–­ä½¿èƒ½ (ç»„9.5)
     IER |= M_INT1;                                      // Enable CPU INT1 for ADC INT
     IER |= M_INT9;
 
@@ -452,17 +453,17 @@ void main(void)
     for(;;)  //infinite loop
     {
         /*
-        //ÏÂÃæ·½·¨²éÑ¯·¨¿ÉÒÔÓÃ
-        // ¶ÁÈ¡ÖĞ¶Ï±êÖ¾
+        //ä¸‹é¢æ–¹æ³•æŸ¥è¯¢æ³•å¯ä»¥ç”¨
+        // è¯»å–ä¸­æ–­æ ‡å¿—
         if(ECanaRegs.CANRMP.bit.RMP1 == 1) {
-            // ½ÓÊÕÏûÏ¢µ½ÓÊÏä1
-            g_RxMsg2.msgID = 0x222;        // ½ÓÊÕID
-            g_RxMsg2.msgID_IDE = 0;        // À©Õ¹Ö¡
-            g_RxMsg2.msgDLC = 8;           // Êı¾İ³¤¶È8×Ö½Ú
+            // æ¥æ”¶æ¶ˆæ¯åˆ°é‚®ç®±1
+            g_RxMsg2.msgID = 0x222;        // æ¥æ”¶ID
+            g_RxMsg2.msgID_IDE = 0;        // æ‰©å±•å¸§
+            g_RxMsg2.msgDLC = 8;           // æ•°æ®é•¿åº¦8å­—èŠ‚
             CAN_ReceiveMessageA(1, (CAN_MSG*)&g_RxMsg2);
             g_RxFlag2 = 1;
 
-            // Çå³ı½ÓÊÕÏûÏ¢¹ÒÆğ±êÖ¾
+            // æ¸…é™¤æ¥æ”¶æ¶ˆæ¯æŒ‚èµ·æ ‡å¿—
             ECanaRegs.CANRMP.bit.RMP1 = 1;
         }
         */
@@ -472,7 +473,7 @@ void main(void)
         (*Alpha_State_Ptr)();   // jump to an Alpha state (A0,B0,...)
         //===========================================================
 
-        //¼ÆËãÆ½¾ùÖµ
+        //è®¡ç®—å¹³å‡å€¼
         MATH_EMAVG2_F_MACRO(fabs(inv_meas_cur_inst), inv_emavg_cur, 0.0003);
     }
 } //END MAIN CODE
@@ -557,16 +558,16 @@ void A1(void)
     CAN_SendCount++;
     if(CAN_SendCount==30)
     {
-        // ¹¹½¨·¢ËÍÏûÏ¢
-        sendMsg.msgID = 0x111;              // ·¢ËÍID
-        sendMsg.msgID_IDE = 0;              // ±ê×¼Ö¡
+        // æ„å»ºå‘é€æ¶ˆæ¯
+        sendMsg.msgID = 0x111;              // å‘é€ID
+        sendMsg.msgID_IDE = 0;              // æ ‡å‡†å¸§
 
-        //sendMsg.msgID = 0x95555555;       // ·¢ËÍID
-        //sendMsg.msgID_IDE = 1;            // À©Õ¹Ö¡
+        //sendMsg.msgID = 0x95555555;       // å‘é€ID
+        //sendMsg.msgID_IDE = 1;            // æ‰©å±•å¸§
 
-        sendMsg.msgDLC = 8;                 // Êı¾İ³¤¶È8×Ö½Ú
+        sendMsg.msgDLC = 8;                 // æ•°æ®é•¿åº¦8å­—èŠ‚
 
-        // Ìî³äÊı¾İ
+        // å¡«å……æ•°æ®
         sendMsg.msgData[0] = sendData[0];
         sendMsg.msgData[1] = sendData[1];
         sendMsg.msgData[2] = sendData[2];
@@ -576,22 +577,22 @@ void A1(void)
         sendMsg.msgData[6] = sendData[6];
         sendMsg.msgData[7] = sendData[7];
 
-        // ·¢ËÍÏûÏ¢
+        // å‘é€æ¶ˆæ¯
         CAN_SendMessageA(0, &sendMsg);
     }
     if(CAN_SendCount==60)
     {
         CAN_SendCount=0;
-        // ¹¹½¨·¢ËÍÏûÏ¢
-        //sendMsg.msgID = 0x333;            // ·¢ËÍID
-        //sendMsg.msgID_IDE = 0;            // ±ê×¼Ö¡
+        // æ„å»ºå‘é€æ¶ˆæ¯
+        //sendMsg.msgID = 0x333;            // å‘é€ID
+        //sendMsg.msgID_IDE = 0;            // æ ‡å‡†å¸§
 
-        sendMsg.msgID = 0x129C00F0;         // ·¢ËÍÀ©Õ¹Ö¡ID 0x129C00F0
-        sendMsg.msgID_IDE = 1;              // À©Õ¹Ö¡
+        sendMsg.msgID = 0x129C00F0;         // å‘é€æ‰©å±•å¸§ID 0x129C00F0
+        sendMsg.msgID_IDE = 1;              // æ‰©å±•å¸§
 
-        sendMsg.msgDLC = 8;                 // Êı¾İ³¤¶È8×Ö½Ú
+        sendMsg.msgDLC = 8;                 // æ•°æ®é•¿åº¦8å­—èŠ‚
 
-        // Ìî³äÊı¾İ
+        // å¡«å……æ•°æ®
         sendMsg.msgData[0] = sendData[0];
         sendMsg.msgData[1] = sendData[1];
         sendMsg.msgData[2] = sendData[2];
@@ -601,7 +602,7 @@ void A1(void)
         sendMsg.msgData[6] = sendData[6];
         sendMsg.msgData[7] = sendData[7];
 
-        // ·¢ËÍÏûÏ¢
+        // å‘é€æ¶ˆæ¯
         CAN_SendMessageA(0, &sendMsg);
     }
 
@@ -616,21 +617,21 @@ void A2(void)
 //-----------------------------------------------------------------
 {
 #if(TFT==1)
-    //´®¿ÚÍ¨Ñ¶´¦Àí
+    //ä¸²å£é€šè®¯å¤„ç†
     if(SCI_Msg.Mark_Para.Status_Bits.rFifoDataflag == 1)
     {
        SCI_Msg.timerOut++;
     }
 
-    //µÈ´ı´®¿Úµ÷ÊÔÖúÊÖ·¢ËÍ ²Ù×÷ÃüÁî
-    //SCI_Msg.timerOutÔÚ¶¨Ê±Æ÷timer0 ÖĞ
+    //ç­‰å¾…ä¸²å£è°ƒè¯•åŠ©æ‰‹å‘é€ æ“ä½œå‘½ä»¤
+    //SCI_Msg.timerOutåœ¨å®šæ—¶å™¨timer0 ä¸­
     if(SCI_Msg.timerOut >= RTU_TIMEROUT)
     {
         SCI_Msg.Mark_Para.Status_Bits.rFifoDataflag = 0;
         SCI_Msg.timerOut = 0;
         SCI_Msg.Mark_Para.Status_Bits.DISRevflag = 1;
 
-        //´®¿ÚÃüÁî
+        //ä¸²å£å‘½ä»¤
         HandleCommAG();
 
         SCI_Msg.Mark_Para.Status_Bits.DISRevflag = 0;
@@ -653,7 +654,7 @@ void A2(void)
 void B1(void) 
 //----------------------------------------
 {
-    //TFTÏÔÊ¾
+    //TFTæ˜¾ç¤º
     sci_tft();
 
     //-----------------
@@ -817,7 +818,7 @@ void C2(void)
 #pragma CODE_SECTION(ADC_ISR,"ramfuncs");
 interrupt void ADC_ISR ( void )
 {
-    //Í¬²½²ÉÑù
+    //åŒæ­¥é‡‡æ ·
     V165 = (AdcRegs.ADCRESULT5>>4)*0.000244140625;  //B2
     Vac_FB = AdcRegs.ADCRESULT0>>4;                 //A0
     Vbus_FB = AdcRegs.ADCRESULT8>>4;                //A4
@@ -841,11 +842,11 @@ interrupt void ADC_ISR ( void )
 
     if (CloseVloopInv==1)
     {
-        //²¢ÍøÄ¸ÏßÇ°À¡»·
+        //å¹¶ç½‘æ¯çº¿å‰é¦ˆç¯
         //PID_GR_MACRO(pidGRANDO_Vinv);
         //inv_Iset=pidGRANDO_Vinv.term.Out;
 
-        //PFCµçÑ¹»·
+        //PFCç”µå‹ç¯
         if(Vdcref > Vdcexp)
             Vdcref = Vdcref - 0.02;
         else
@@ -883,7 +884,7 @@ interrupt void ADC_ISR ( void )
     inv_meas_cur_inst = (inv_meas_cur_lleg1_inst - inv_meas_cur_lleg2_inst)*2.0;
 
     inv_meas_vol =(Vac_FB*0.000244140625-0.5)*2.0;
-    inv_meas_vol_inst = ((long)((long) Vac_FB<<12)-_IQ24(0.5))<<1;  // ½»Á÷µçÑ¹µçÁ÷²ÉÑù¶¼Òª×óÒÆ1·Å´ó1±¶
+    inv_meas_vol_inst = ((long)((long) Vac_FB<<12)-_IQ24(0.5))<<1;  // äº¤æµç”µå‹ç”µæµé‡‡æ ·éƒ½è¦å·¦ç§»1æ”¾å¤§1å€
 
     pidGRANDO_Iinv.term.Fbk=inv_meas_cur_inst;
     pidGRANDO_Iinv.term.Ref=inv_ref_cur_inst;
@@ -899,17 +900,18 @@ interrupt void ADC_ISR ( void )
     // Apply inverter o/p correction
     if (CloseIloopInv ==0)
     {
-        duty=InvSine*InvModIndex;
+        //æ–¹æ³¢è¿è¡Œï¼šåªå–æ­£å¼¦çš„ç¬¦å·ï¼Œå ç©ºæ¯”æ‹‰æ»¡(è¿‘100%/0)ï¼Œè¾“å‡º50Hzæ–¹æ³¢
+        duty = (InvSine >= 0.0) ? 0.99 : -0.99;
         PWMDRV_1phInv_unipolar(1,3750.0,(duty));
     }
     else
     {
-        PWMDRV_1phInv_unipolar(1,3750.0,pidGRANDO_Iinv.term.Out);       //²¢Íø¿ÉÒÔ
-        //PWMDRV_1phInv_unipolar(1,3750.0,cntl3p3z_InvI_vars.Out);      //²¢Íø¿ÉÒÔ
-        //PWMDRV_1phInv_unipolar(1,3750.0,(cntl3p3z_InvI_vars.Out+inv_meas_vol)/vbus_meas_inst);//²¢ÍøĞ§¹û²î
+        PWMDRV_1phInv_unipolar(1,3750.0,pidGRANDO_Iinv.term.Out);       //å¹¶ç½‘å¯ä»¥
+        //PWMDRV_1phInv_unipolar(1,3750.0,cntl3p3z_InvI_vars.Out);      //å¹¶ç½‘å¯ä»¥
+        //PWMDRV_1phInv_unipolar(1,3750.0,(cntl3p3z_InvI_vars.Out+inv_meas_vol)/vbus_meas_inst);//å¹¶ç½‘æ•ˆæœå·®
     }
 
-    //DCDCÒÆÏà¿ØÖÆ
+    //DCDCç§»ç›¸æ§åˆ¶
     EPwm3Regs.TBPRD = BOOST_PWM_PERIOD;
     EPwm4Regs.TBPRD = BOOST_PWM_PERIOD;
 
@@ -921,8 +923,26 @@ interrupt void ADC_ISR ( void )
     duty_flyback_pu2= (duty_flyback_pu2<(0.0))?(0.0):duty_flyback_pu2;
 
     duty_flyback2 =BOOST_PWM_PERIOD*duty_flyback_pu2;
-    //EPwm4Regs.TBPHS.half.TBPHS = BOOST_PWM_PERIOD-duty_flyback2;
-    EPwm4Regs.TBPHS.half.TBPHS = PERIOD-duty_flyback2+190;      //190²¹³¥ËÀÇøÁ¿
+    //DCDCç§»ç›¸é‡ï¼špu2=0 å¯¹åº”ç›¸ä½180åº¦ï¼Œpu2=1 å¯¹åº”ç›¸ä½0åº¦ï¼›æ­»åŒºå·²ç”±DBå­æ¨¡å—å¤„ç†ï¼Œæ­¤å¤„ä¸å†å åŠ è¡¥å¿é‡
+    phase_flyback = BOOST_PWM_PERIOD-duty_flyback2;
+    if(phase_flyback > BOOST_PWM_PERIOD) phase_flyback = BOOST_PWM_PERIOD;   //å¿…é¡»é™åˆ¶åœ¨0..TBPRDï¼Œå¦åˆ™EPWM4è®¡æ•°ä¸‰è§’å½¢è¢«æˆªæ–­
+    if(phase_flyback < 0)                phase_flyback = 0;
+    EPwm4Regs.TBPHS.half.TBPHS = phase_flyback;
+
+    // 50Hz æ–¹æ³¢è¾“å‡ºï¼šAQ è¿ç»­å¼ºåˆ¶ï¼Œè¦†ç›–ä¸Šé¢çš„ CMPA æ¯”è¾ƒï¼Œè¾“å‡ºå¹²å‡€çš„é™æ€ç”µå¹³
+    // EPWM4A->Q21(å·¦è…¿ä¸‹ç®¡)ã€EPWM4B->Q9(å·¦è…¿ä¸Šç®¡)ï¼›EPWM3A->Q10(å³è…¿ä¸Šç®¡)ã€EPWM3B->Q22(å³è…¿ä¸‹ç®¡)
+    // CSFA=2: V_SA=BUS- ä¸” V_SB=BUS+ï¼›CSFA=1: V_SA=BUS+ ä¸” V_SB=BUS-ï¼Œä¸¤è…¿è‡ªåŠ¨äº’è¡¥ï¼Œæ­»åŒºä»ç”±DBä¿è¯
+    // ç›¸ä½ä¸ InvSine ç›¸åï¼Œéœ€è¦æ—¶æŠŠä¸¤ä¸ªåˆ†æ”¯çš„ 1/2 å¯¹è°ƒ
+    if (InvSine >= 0.0f)
+    {
+        EPwm4Regs.AQCSFRC.bit.CSFA = 2;
+        EPwm3Regs.AQCSFRC.bit.CSFA = 2;
+    }
+    else
+    {
+        EPwm4Regs.AQCSFRC.bit.CSFA = 1;
+        EPwm3Regs.AQCSFRC.bit.CSFA = 1;
+    }
 
 // ------------------------------------------------------------------------------
 //    Connect inputs to the sine analyzer block , compute RMS, Freq, ZCD
@@ -967,7 +987,7 @@ interrupt void EPWM1_ISR(void)
         CloseIloopInv=0;
     }
 
-    EPwm5Regs.CMPA.half.CMPA = 625;             //1500/2=750 625=750-125Ğ¡µçÔ´°åÊäÈë12VDCÊä³öÊÇ18VDC
+    EPwm5Regs.CMPA.half.CMPA = 625;             //1500/2=750 625=750-125å°ç”µæºæ¿è¾“å…¥12VDCè¾“å‡ºæ˜¯18VDC
     EPwm5Regs.CMPB=125;
 
     EPwm1Regs.ETCLR.bit.INT = 1;                // clear EPwm1 INT flag
@@ -976,13 +996,13 @@ interrupt void EPWM1_ISR(void)
 }
 
 //---------------------------------------------------------------------
-//²Ù×÷´®¿ÚÃüÁîĞ­Òé£¬SCI´®¿ÚÃüÁî²ÎÊıBaudRate=19200
-//#define COMM_ID       0xA2        //´®¿ÚÃüÁîÊ¶±ğµØÖ·
-//#define ID_I          0           //´®¿ÚÃüÁîµÚ0Î»
-//#define CMD_I         1           //´®¿ÚÃüÁîµÚ1Î»
-//#define ADDR_I        2           //´®¿ÚÃüÁîµÚ2Î»
-//#define DATA_I        3           //´®¿ÚÃüÁîµÚ3Î»
-//#define DATB_I        4           //´®¿ÚÃüÁîµÚ4Î»
+//æ“ä½œä¸²å£å‘½ä»¤åè®®ï¼ŒSCIä¸²å£å‘½ä»¤å‚æ•°BaudRate=19200
+//#define COMM_ID       0xA2        //ä¸²å£å‘½ä»¤è¯†åˆ«åœ°å€
+//#define ID_I          0           //ä¸²å£å‘½ä»¤ç¬¬0ä½
+//#define CMD_I         1           //ä¸²å£å‘½ä»¤ç¬¬1ä½
+//#define ADDR_I        2           //ä¸²å£å‘½ä»¤ç¬¬2ä½
+//#define DATA_I        3           //ä¸²å£å‘½ä»¤ç¬¬3ä½
+//#define DATB_I        4           //ä¸²å£å‘½ä»¤ç¬¬4ä½
 //---------------------------------------------------------------------
 unsigned char HandleCommAG()
 {
@@ -990,25 +1010,25 @@ unsigned char HandleCommAG()
     char s2[]="The command format is:EE 00 00\r\n";
     int len;
     unsigned char addr,getdata,getdatb,getdatc,getdatx;
-    //s1×Ö·û´®Êä³öµ½´®¿Úµ÷ÊÔÖúÊÖÉÏ£¬Èç¹ûÒÔ16½øÖÆ²é¿´¶¼ÊÇasciiÂë
+    //s1å­—ç¬¦ä¸²è¾“å‡ºåˆ°ä¸²å£è°ƒè¯•åŠ©æ‰‹ä¸Šï¼Œå¦‚æœä»¥16è¿›åˆ¶æŸ¥çœ‹éƒ½æ˜¯asciiç 
     if(SCI_Msg.rxData[ID_I] != COMM_ID)                 //ID_I=0   COMM_ID=0xEE
     {
         SCI_Msg.rxWriteIndex = 0;
         SCI_Msg.rxReadIndex = 0;
-        //Èç¹ûÃüÁî²»ÕıÈ·¾ÍÖ±½Ó·µ»ØÒ²¿ÉÔÚ´ËĞ´ÃüÁî²»ÕıÈ·ÒªÖ´ĞĞµÄ´úÂë
+        //å¦‚æœå‘½ä»¤ä¸æ­£ç¡®å°±ç›´æ¥è¿”å›ä¹Ÿå¯åœ¨æ­¤å†™å‘½ä»¤ä¸æ­£ç¡®è¦æ‰§è¡Œçš„ä»£ç 
         len=strlen(s1);                                 //strlen #include <string.h>
         send_msgc(s1,len);
         return 1;
     }
-    //½âÎö²Ù×÷
-    switch(SCI_Msg.rxData[CMD_I])                       //CMD_I=1±íÊ¾´®¿Ú½ÓÊÕµ½µÄÊı¾İrxDataÖĞµÄÊı×éÖ¸ÕëÎ»ÖÃ
+    //è§£ææ“ä½œ
+    switch(SCI_Msg.rxData[CMD_I])                       //CMD_I=1è¡¨ç¤ºä¸²å£æ¥æ”¶åˆ°çš„æ•°æ®rxDataä¸­çš„æ•°ç»„æŒ‡é’ˆä½ç½®
     {
-        //»ñµÃ°ïÖú£¬ÃüÁîÊ¾Àı£º
-        //EE  ¹¦ÄÜ    µØÖ·  Êı¾İ
+        //è·å¾—å¸®åŠ©ï¼Œå‘½ä»¤ç¤ºä¾‹ï¼š
+        //EE  åŠŸèƒ½    åœ°å€  æ•°æ®
         //EE  00   00
         case 0:
-            addr =  SCI_Msg.rxData[ADDR_I];             //ADDR_I=2 ´®¿ÚÃüÁîµÚ2Î»
-            //getdata = SCI_Msg.rxData[DATA_I];         //DATA_I=3 µÃµ½µ÷ÊÔÄ£Ê½Öµ£¬±ØĞëÊÇ0x00-0xFF
+            addr =  SCI_Msg.rxData[ADDR_I];             //ADDR_I=2 ä¸²å£å‘½ä»¤ç¬¬2ä½
+            //getdata = SCI_Msg.rxData[DATA_I];         //DATA_I=3 å¾—åˆ°è°ƒè¯•æ¨¡å¼å€¼ï¼Œå¿…é¡»æ˜¯0x00-0xFF
             if(addr==0)
             {
                 len=strlen(s2);
@@ -1024,35 +1044,35 @@ unsigned char HandleCommAG()
             }
             if(addr==3)
             {
-                //·ÅµçÄ£Ê½
-                strcpy(cPV_State,"²¢Íø");
+                //æ”¾ç”µæ¨¡å¼
+                strcpy(cPV_State,"å¹¶ç½‘");
             }
             if(addr==4)
             {
-                //PFC ³äµçÄ£Ê½
+                //PFC å……ç”µæ¨¡å¼
                 strcpy(cPV_State,"PFC");
             }
             if(addr==5)
             {
-                //Ôö¼ÓÕ¼¿Õ±È
+                //å¢åŠ å ç©ºæ¯”
                 //inv_Iset=inv_Iset+0.01;
-                //ÊÖ¶¯ÒÆÏà+
+                //æ‰‹åŠ¨ç§»ç›¸+
                 duty_flyback_pu2=duty_flyback_pu2+(0.05);
             }
             if(addr==6)
             {
-                //¼õĞ¡Õ¼¿Õ±È
+                //å‡å°å ç©ºæ¯”
                 //inv_Iset=inv_Iset-0.01;
-                //ÊÖ¶¯ÒÆÏà-
+                //æ‰‹åŠ¨ç§»ç›¸-
                 duty_flyback_pu2=duty_flyback_pu2-(0.05);
             }
             break;
         //EE  01   00
         case 1:
-            addr =  SCI_Msg.rxData[ADDR_I];                     //ADDR_I=2 ´®¿ÚÃüÁîµÚ2Î»
+            addr =  SCI_Msg.rxData[ADDR_I];                     //ADDR_I=2 ä¸²å£å‘½ä»¤ç¬¬2ä½
             if(addr==0)
             {
-                //DCDC ¿ªÆô
+                //DCDC å¼€å¯
                 duty_flyback_pu=(0.5);
                 duty_flyback_pu2=(0.0);
                 RlyConnect=1;
@@ -1060,19 +1080,19 @@ unsigned char HandleCommAG()
             }
             if(addr==1)
             {
-                //DCDC ±Õ»·
+                //DCDC é—­ç¯
             }
             if(addr==2)
             {
-                //¼õĞ¡ÆµÂÊ£¬Ôö¼ÓµçÑ¹
+                //å‡å°é¢‘ç‡ï¼Œå¢åŠ ç”µå‹
             }
             if(addr==3)
             {
-                //Ôö¼ÓÆµÂÊ£¬¼õĞ¡µçÑ¹
+                //å¢åŠ é¢‘ç‡ï¼Œå‡å°ç”µå‹
             }
             if(addr==4)
             {
-                //Í£Ö¹DCDC
+                //åœæ­¢DCDC
                 CloseFlybackLoop=0;
                 mPWM3_OFF();
                 mPWM4_OFF();
@@ -1081,19 +1101,19 @@ unsigned char HandleCommAG()
             }
             if(addr==5)
             {
-                //Æô¶¯¸¨Öú¼ÌµçÆ÷
+                //å¯åŠ¨è¾…åŠ©ç»§ç”µå™¨
             }
             if(addr==6)
             {
-                //¿ªÆôÍ¬²½ÕûÁ÷³äµç
+                //å¼€å¯åŒæ­¥æ•´æµå……ç”µ
             }
             break;
         //EE  02   00
         case 2:
-            addr =  SCI_Msg.rxData[ADDR_I];             //ADDR_I=2 ´®¿ÚÃüÁîµÚ2Î»
+            addr =  SCI_Msg.rxData[ADDR_I];             //ADDR_I=2 ä¸²å£å‘½ä»¤ç¬¬2ä½
             if(addr==0)
             {
-                //DCAC ¿ªÆô
+                //DCAC å¼€å¯
                 ClearInvTrip=1;
             }
             if(addr==1)
@@ -1120,57 +1140,57 @@ unsigned char HandleCommAG()
             break;
          //EE  03   00
         case 3:
-            addr =  SCI_Msg.rxData[ADDR_I];             //ADDR_I=2 ´®¿ÚÃüÁîµÚ2Î»
+            addr =  SCI_Msg.rxData[ADDR_I];             //ADDR_I=2 ä¸²å£å‘½ä»¤ç¬¬2ä½
             if(addr==0)
             {
                 //MPPT_ENABLE=1;
             }
             if(addr==1)
             {
-                //DCAC ±Õ»·
+                //DCAC é—­ç¯
                 CloseVloopInv=1;
                 CloseIloopInv=1;
             }
             if(addr==2)
             {
                 Gui_InvStart=1;
-                strcpy(cPV_State,"¿ªÊ¼");
+                strcpy(cPV_State,"å¼€å§‹");
             }
             if(addr==3)
             {
-                //Í£Ö¹MPPT
+                //åœæ­¢MPPT
             }
             if(addr==4)
             {
                 Gui_InvStop=1;
-                strcpy(cPV_State,"¹Ø»ú");
+                strcpy(cPV_State,"å…³æœº");
             }
             if(addr==5)
             {
-                //TEST ÀëÍø²âÊÔPWMÇı¶¯ĞÅºÅ
+                //TEST ç¦»ç½‘æµ‹è¯•PWMé©±åŠ¨ä¿¡å·
                 RelayStop();
                 ClearInvTrip = 1;
-                strcpy(cPV_State,"ÀëÍø");
+                strcpy(cPV_State,"ç¦»ç½‘");
             }
             break;
-            //»ñµÃTFT Ò³ÃæID=1 µÄ²Ù×÷
+            //è·å¾—TFT é¡µé¢ID=1 çš„æ“ä½œ
             //       0  1  2  3  4  5  6  7  8  9 10 11 12 13 14
-            //ÉèÖÃµçÑ¹ EE B1 11 00 02 00 08 11 35 30 00 FF FC FF FF 50V
-            //ÉèÖÃµçÁ÷ EE B1 11 00 01 00 05 11 32 30 00 FF FC FF FF 20A
-            //ÉèÖÃ³äµçµçÑ¹ pv_ref_bv_inst=_IQ24(0.113);              //29.4VDC³äµç
-            //ÉèÖÃ³äµçµçÑ¹ pv_ref_bv_inst=_IQ24(0.160);              //45.5VDC³äµç
-            //ÉèÖÃ³äµçµçÑ¹ pv_ref_bv_inst=_IQ24(0.180);              //49.5VDC³äµç
+            //è®¾ç½®ç”µå‹ EE B1 11 00 02 00 08 11 35 30 00 FF FC FF FF 50V
+            //è®¾ç½®ç”µæµ EE B1 11 00 01 00 05 11 32 30 00 FF FC FF FF 20A
+            //è®¾ç½®å……ç”µç”µå‹ pv_ref_bv_inst=_IQ24(0.113);              //29.4VDCå……ç”µ
+            //è®¾ç½®å……ç”µç”µå‹ pv_ref_bv_inst=_IQ24(0.160);              //45.5VDCå……ç”µ
+            //è®¾ç½®å……ç”µç”µå‹ pv_ref_bv_inst=_IQ24(0.180);              //49.5VDCå……ç”µ
         case 0xB1:
             addr =  SCI_Msg.rxData[6];
-            //ÉèÖÃ³äµçµçÑ¹15-55V£¬´ïµ½¿ØÖÆ³äµçµçÑ¹
+            //è®¾ç½®å……ç”µç”µå‹15-55Vï¼Œè¾¾åˆ°æ§åˆ¶å……ç”µç”µå‹
             if(addr==4)
             {
-                //ÉèÖÃ³äµçµçÑ¹15-55V£¬´ïµ½¿ØÖÆ³äµçµçÑ¹
+                //è®¾ç½®å……ç”µç”µå‹15-55Vï¼Œè¾¾åˆ°æ§åˆ¶å……ç”µç”µå‹
                 if(addr==0x04)
                 {
                     if(SCI_Msg.rxData[11]==0)
                     {
-                        //ºÏ²¢[31 32ÎªÒ»¸ö10½øÖÆÊı
+                        //åˆå¹¶[31 32ä¸ºä¸€ä¸ª10è¿›åˆ¶æ•°
                         getdata = SCI_Msg.rxData[8]-0x30;
                         getdatb = SCI_Msg.rxData[9]-0x30;
                         getdatc = SCI_Msg.rxData[10]-0x30;
@@ -1179,12 +1199,12 @@ unsigned char HandleCommAG()
                 }
             }
 
-            //ÉèÖÃ³äµçµçÁ÷1.0-10.9A£¬Ò»Î»Ğ¡Êı
+            //è®¾ç½®å……ç”µç”µæµ1.0-10.9Aï¼Œä¸€ä½å°æ•°
             if(addr==0x0D)
             {
                 if(SCI_Msg.rxData[11]==0)
                 {
-                    //ÓÉÓÚrxDataÊÇ16½øÖÆÊı-0x30±ä³É10½øÖÆÊı
+                    //ç”±äºrxDataæ˜¯16è¿›åˆ¶æ•°-0x30å˜æˆ10è¿›åˆ¶æ•°
                     getdata = SCI_Msg.rxData[8]-0x30;
 
                     getdatx = SCI_Msg.rxData[10]-0x30;
@@ -1192,7 +1212,7 @@ unsigned char HandleCommAG()
                 }
                 else if(SCI_Msg.rxData[12]==0)
                 {
-                    //ºÏ²¢[31 32ÎªÒ»¸ö10½øÖÆÊı
+                    //åˆå¹¶[31 32ä¸ºä¸€ä¸ª10è¿›åˆ¶æ•°
                     getdata = SCI_Msg.rxData[8]-0x30;
                     getdatb = SCI_Msg.rxData[9]-0x30;
 
@@ -1212,32 +1232,32 @@ unsigned char HandleCommAG()
 
 void sendTFT(float32 U,Uint16 SID,Uint16 ID)
 {
-    //¹ãÖİ´ó²ÊÉè±¸³ö³§Ç°¾ùÄ¬ÈÏ RS232 µçÆ½£¬ÈôÓÃ»§ĞèÒª TTL Í¨Ñ¶·½Ê½£¬Ö»Ğè½« J5 º¸ÅÌ¶ÌÂ·
-    //¶ÌÂ·ºó¾Í²»ÄÜÓÃRS232½øĞĞ´®¿Ú²âÊÔ£¬µ«¿ÉÒÔÓÃVisualTFTÏÂÔØ¹¤³Ì
-    //ÔÚ¹¤³ÌÅäÖÃÖĞ¿ÉÒÔÉèÖÃÓëF28035µÄ´«Êä²¨ÌØÂÊ
-    //TTL µçÆ½Ä£Ê½ÏÂ¼æÈİ 3.3V ºÍ 5V IO ÊäÈëÊä³ö
-    //SCI·¢ËÍÊı¾İ£¬²¨ÌØÂÊ19200
+    //å¹¿å·å¤§å½©è®¾å¤‡å‡ºå‚å‰å‡é»˜è®¤ RS232 ç”µå¹³ï¼Œè‹¥ç”¨æˆ·éœ€è¦ TTL é€šè®¯æ–¹å¼ï¼Œåªéœ€å°† J5 ç„Šç›˜çŸ­è·¯
+    //çŸ­è·¯åå°±ä¸èƒ½ç”¨RS232è¿›è¡Œä¸²å£æµ‹è¯•ï¼Œä½†å¯ä»¥ç”¨VisualTFTä¸‹è½½å·¥ç¨‹
+    //åœ¨å·¥ç¨‹é…ç½®ä¸­å¯ä»¥è®¾ç½®ä¸F28035çš„ä¼ è¾“æ³¢ç‰¹ç‡
+    //TTL ç”µå¹³æ¨¡å¼ä¸‹å…¼å®¹ 3.3V å’Œ 5V IO è¾“å…¥è¾“å‡º
+    //SCIå‘é€æ•°æ®ï¼Œæ³¢ç‰¹ç‡19200
     //ASCII(., 0, 1, 2, 3, 4, 5, 6, 7,  8, 9)
     //=HEX(2E,30,31,32, 33,34,35,36,37,38,39)
     //EE B1 10 Screen_id Control_id     Strings         FF FC FF FF
     //EE B1 10   00 01     00 01     32 33 2E 30 35     FF FC FF FF =23.05
     // 0  1  2    3  4     5   6     7   8  9  10  11   12 13 14 15
-    char str[10];                                       //char str[10];¶¨Òå²»ÄÜ·Åµ½main()Ç°µÄÈ«¾Ö¶¨ÒåÉÏ£¬·ñÔò´®¿ÚÃüÁî²»ÄÜÕı³£ÔËĞĞ£¬Ô­Òò²»Ã÷
-    //ftoa()Ê¹ÓÃÊ±ÏµÍ³²»ÄÜÕı³£ÔËĞĞ£¬ÏÖÏóÊÇ£ºÈç¹û1ºÍ2Â·À­ÔØ¿ªÆô£¬´®¿Ú·¢ËÍA2 03 00ÃüÁîÊ±µÚ1Â·À­ÔØµÄPWM·½²¨»áÍ£Ö¹
-    //Èç¹û²»Ê¹ÓÃftoa()ÏµÍ³ÄÜÕı³£ÔËĞĞ£¬Ò²²»»á³öÏÖÉÏÃæÏÖÏó£¬Ó¦¸ÃÕÒÒ»¸ö¸üºÃµÄº¯Êı
+    char str[10];                                       //char str[10];å®šä¹‰ä¸èƒ½æ”¾åˆ°main()å‰çš„å…¨å±€å®šä¹‰ä¸Šï¼Œå¦åˆ™ä¸²å£å‘½ä»¤ä¸èƒ½æ­£å¸¸è¿è¡Œï¼ŒåŸå› ä¸æ˜
+    //ftoa()ä½¿ç”¨æ—¶ç³»ç»Ÿä¸èƒ½æ­£å¸¸è¿è¡Œï¼Œç°è±¡æ˜¯ï¼šå¦‚æœ1å’Œ2è·¯æ‹‰è½½å¼€å¯ï¼Œä¸²å£å‘é€A2 03 00å‘½ä»¤æ—¶ç¬¬1è·¯æ‹‰è½½çš„PWMæ–¹æ³¢ä¼šåœæ­¢
+    //å¦‚æœä¸ä½¿ç”¨ftoa()ç³»ç»Ÿèƒ½æ­£å¸¸è¿è¡Œï¼Œä¹Ÿä¸ä¼šå‡ºç°ä¸Šé¢ç°è±¡ï¼Œåº”è¯¥æ‰¾ä¸€ä¸ªæ›´å¥½çš„å‡½æ•°
     float_TO_ascii(U,str);
 
-    send_Tdata[4] = SID;                    //Ò³Ãæ¿Ø¼şID
+    send_Tdata[4] = SID;                    //é¡µé¢æ§ä»¶ID
 
-    send_Tdata[6] = ID;                     //¿Ø¼şID
+    send_Tdata[6] = ID;                     //æ§ä»¶ID
 
-    send_Tdata[7] = str[0];                 //send_Tdata[7-11]ÎªASCIIÊıÖµ
+    send_Tdata[7] = str[0];                 //send_Tdata[7-11]ä¸ºASCIIæ•°å€¼
     send_Tdata[8] = str[1];
     send_Tdata[9] = str[2];
     send_Tdata[10]= str[3];
     send_Tdata[11]= str[4];
 
-    send_msg(send_Tdata);                   //·¢ËÍÊı¾İ
+    send_msg(send_Tdata);                   //å‘é€æ•°æ®
 }
 
 void sci_tft(void)
@@ -1260,7 +1280,7 @@ void sci_tft(void)
         //sendTFT(Vdc.Vpn,0x01,0x03);
     }
     ///*
-    //±¸ÓÃ
+    //å¤‡ç”¨
     if(send_timer==(timerNum*4))
     {
         //sendTFT(THIPWM.modulation_index,0x01,0x04);
@@ -1292,7 +1312,7 @@ void sci_tft(void)
     }
     if(send_timer==(timerNum*10))
     {
-        //·¢ËÍµÄÊı¾İ¸üĞÂTFT LCDÎÄ±¾Êı¾İ
+        //å‘é€çš„æ•°æ®æ›´æ–°TFT LCDæ–‡æœ¬æ•°æ®
         //EE B1 10 Screen_id Control_id     Strings      FF FC FF FF
         //EE B1 10   00 01     00 01       [Strings]     FF FC FF FF
         scic_xmit(COMM_ID);
