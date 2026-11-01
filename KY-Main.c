@@ -287,6 +287,24 @@ void main(void)
     PWM_1ch_UpDwnCnt_CNF(3, BOOST_PWM_PERIOD*2, 1, (CPU_FREQ / (FLYBACK_FREQ * 2)) - 2,FLYBACK_DEADBAND_RED,FLYBACK_DEADBAND_FED);
     // 互补的 PWM4 100kHz
     PWM_1ch_UpDwnCnt_CNF(4, BOOST_PWM_PERIOD*2, 0, (CPU_FREQ / (FLYBACK_FREQ * 2)) - 2,FLYBACK_DEADBAND_RED,FLYBACK_DEADBAND_FED);
+
+    // 输出方波 100kHz：150MHz/(2*750) = 100kHz
+    EPwm3Regs.TBPRD = 750;
+    EPwm4Regs.TBPRD = 750;
+
+    // 强制两路严格同相位：停TBCLK -> 计数器同时清0 -> 同时放开（不依赖EPWM3->EPWM4同步链路）
+    EALLOW;
+    SysCtrlRegs.PCLKCR0.bit.TBCLKSYNC = 0;
+    EPwm3Regs.TBCTL.bit.PHSEN = TB_DISABLE;
+    EPwm4Regs.TBCTL.bit.PHSEN = TB_DISABLE;
+    EPwm3Regs.TBPHS.half.TBPHS = 0;
+    EPwm4Regs.TBPHS.half.TBPHS = 0;
+    EPwm3Regs.TBCTL.bit.PHSDIR = TB_UP;
+    EPwm4Regs.TBCTL.bit.PHSDIR = TB_UP;
+    EPwm3Regs.TBCTR = 0;
+    EPwm4Regs.TBCTR = 0;
+    SysCtrlRegs.PCLKCR0.bit.TBCLKSYNC = 1;
+    EDIS;
     PERIOD = BOOST_PWM_PERIOD;
     mPWM3_OFF();
     mPWM4_OFF();
@@ -911,38 +929,13 @@ interrupt void ADC_ISR ( void )
         //PWMDRV_1phInv_unipolar(1,3750.0,(cntl3p3z_InvI_vars.Out+inv_meas_vol)/vbus_meas_inst);//并网效果差
     }
 
-    //DCDC移相控制
-    EPwm3Regs.TBPRD = BOOST_PWM_PERIOD;
-    EPwm4Regs.TBPRD = BOOST_PWM_PERIOD;
-
-    duty_flyback =BOOST_PWM_PERIOD*duty_flyback_pu;
-    EPwm3Regs.CMPA.half.CMPA = duty_flyback;
-    EPwm4Regs.CMPA.half.CMPA = duty_flyback;
-
-    duty_flyback_pu2= (duty_flyback_pu2>(1.0))?(1.0):duty_flyback_pu2;
-    duty_flyback_pu2= (duty_flyback_pu2<(0.0))?(0.0):duty_flyback_pu2;
-
-    duty_flyback2 =BOOST_PWM_PERIOD*duty_flyback_pu2;
-    //DCDC移相量：pu2=0 对应相位180度，pu2=1 对应相位0度；死区已由DB子模块处理，此处不再叠加补偿量
-    phase_flyback = BOOST_PWM_PERIOD-duty_flyback2;
-    if(phase_flyback > BOOST_PWM_PERIOD) phase_flyback = BOOST_PWM_PERIOD;   //必须限制在0..TBPRD，否则EPWM4计数三角形被截断
-    if(phase_flyback < 0)                phase_flyback = 0;
-    EPwm4Regs.TBPHS.half.TBPHS = phase_flyback;
-
-    // 50Hz 方波输出：AQ 连续强制，覆盖上面的 CMPA 比较，输出干净的静态电平
-    // EPWM4A->Q21(左腿下管)、EPWM4B->Q9(左腿上管)；EPWM3A->Q10(右腿上管)、EPWM3B->Q22(右腿下管)
-    // CSFA=2: V_SA=BUS- 且 V_SB=BUS+；CSFA=1: V_SA=BUS+ 且 V_SB=BUS-，两腿自动互补，死区仍由DB保证
-    // 相位与 InvSine 相反，需要时把两个分支的 1/2 对调
-    if (InvSine >= 0.0f)
-    {
-        EPwm4Regs.AQCSFRC.bit.CSFA = 2;
-        EPwm3Regs.AQCSFRC.bit.CSFA = 2;
-    }
-    else
-    {
-        EPwm4Regs.AQCSFRC.bit.CSFA = 1;
-        EPwm3Regs.AQCSFRC.bit.CSFA = 1;
-    }
+    // 100kHz 方波输出：EPWM3/EPWM4 两腿同相位、50%占空
+    // 驱动板上两腿是互补反接的：EPWM4A->Q21(左腿下)、EPWM4B->Q9(左腿上)；
+    // EPWM3A->Q10(右腿上)、EPWM3B->Q22(右腿下)。两路A同相位，V_SA-V_SB 才是 ±BUS 方波。
+    EPwm3Regs.CMPA.half.CMPA = 375;                 // 50%占空
+    EPwm4Regs.CMPA.half.CMPA = 375;
+    EPwm3Regs.AQCSFRC.bit.CSFA = 0;                 // 关闭AQ连续强制，恢复CMPA比较
+    EPwm4Regs.AQCSFRC.bit.CSFA = 0;
 
 // ------------------------------------------------------------------------------
 //    Connect inputs to the sine analyzer block , compute RMS, Freq, ZCD

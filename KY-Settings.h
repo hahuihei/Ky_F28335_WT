@@ -43,9 +43,9 @@
 #define FLYBACK_FREQ    40000.0                         //DCDC PWM频率40kHz
 #define FLYBACK_PWM_PERIOD (CPU_FREQ/(FLYBACK_FREQ*2))  //DCDC PWM周期值CPU_FREQ/(FLYBACK_FREQ*2)=1875
 #define BOOST_PWM_PERIOD 1875                           //Boost PWM 40kHz
-//1us死区
-#define FLYBACK_DEADBAND_RED 135
-#define FLYBACK_DEADBAND_FED 135
+//0.13us死区(20tick@150MHz)。SiC+UCC21520关断约60ns，20tick约2倍余量，不要再小于15
+#define FLYBACK_DEADBAND_RED 20
+#define FLYBACK_DEADBAND_FED 20
 
 #define Vbus_SENSE_MAX      375.0
 #define IGrid_SENSE_MAX     51.6        //全桥电流采样方式-AC峰值采样电流
